@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { VehicleInfo } from '../types';
 import { Input } from './ui/Input';
 
@@ -8,6 +9,7 @@ interface VehicleInfoFormProps {
 }
 
 export const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({ info, onChange }) => {
+  const { t } = useTranslation();
   const normalizePhoneDigits = (value: string) => value.replace(/\D/g, '').slice(0, 11);
 
   const formatPhoneBR = (digits: string) => {
@@ -35,35 +37,47 @@ export const VehicleInfoForm: React.FC<VehicleInfoFormProps> = ({ info, onChange
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Input
-        label="Proprietário"
-        value={info.owner}
-        onChange={e => onChange({ ...info, owner: e.target.value })}
-        placeholder="Ex: João Silva"
+        label={t('vehicle_info.workshop')}
+        value={info.workshop || ''}
+        onChange={e => onChange({ ...info, workshop: e.target.value })}
+        placeholder={t('vehicle_info.workshop_placeholder')}
       />
       <Input
-        label="Telefone"
+        label={t('vehicle_info.os_number')}
+        value={info.osNumber || ''}
+        onChange={e => onChange({ ...info, osNumber: e.target.value })}
+        placeholder={t('vehicle_info.os_number_placeholder')}
+      />
+      <Input
+        label={t('vehicle_info.owner')}
+        value={info.owner}
+        onChange={e => onChange({ ...info, owner: e.target.value })}
+        placeholder={t('vehicle_info.owner_placeholder')}
+      />
+      <Input
+        label={t('vehicle_info.phone')}
         value={info.phone}
         onChange={e => {
           const digits = normalizePhoneDigits(e.target.value);
           onChange({ ...info, phone: formatPhoneBR(digits) });
         }}
-        placeholder="(11) 99999-9999"
-        error={!isValidPhone(info.phone) ? 'Telefone inválido (use DDD + número)' : undefined}
+        placeholder={t('vehicle_info.phone_placeholder')}
+        error={!isValidPhone(info.phone) ? t('vehicle_info_form.phone_invalid') : undefined}
       />
       <Input
-        label="Marca / Modelo"
+        label={t('vehicle_info.brand_model')}
         value={info.brand}
         onChange={e => onChange({ ...info, brand: e.target.value })}
-        placeholder="Ex: Toyota Civic"
+        placeholder={t('vehicle_info.brand_model_placeholder')}
       />
       <Input
-        label="Placa"
+        label={t('vehicle_info.plate')}
         value={info.plate}
         onChange={e => onChange({ ...info, plate: normalizePlate(e.target.value) })}
-        placeholder="ABC1D23"
-        error={!isValidPlate(info.plate) ? 'Placa inválida (padrão BR ou Mercosul)' : undefined}
+        placeholder={t('vehicle_info.plate_placeholder')}
+        error={!isValidPlate(info.plate) ? t('vehicle_info_form.plate_invalid') : undefined}
       />
     </div>
   );

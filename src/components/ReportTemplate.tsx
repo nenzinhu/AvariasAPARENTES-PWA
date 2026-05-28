@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Damage, VehicleInfo } from '../types';
 
 interface ReportProps {
@@ -9,6 +10,7 @@ interface ReportProps {
 
 export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportProps>(
   ({ vehicleInfo, damages, vehicleType }, ref) => {
+    const { t } = useTranslation();
     return (
       <div ref={ref} className="pdf-container" style={{ padding: '40px', fontFamily: 'Arial, sans-serif', color: '#000', backgroundColor: 'white' }}>
         <style>{`
@@ -24,36 +26,38 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportProps>(
         `}</style>
 
         <header className="header">
-          <div className="title">Relatório de Vistoria de Danos</div>
-          <p style={{ color: '#6b7280' }}>Data: {new Date().toLocaleDateString()}</p>
+          <div className="title">{t('report_template.title')}</div>
+          <p style={{ color: '#6b7280' }}>{t('report_template.date', { date: new Date().toLocaleDateString() })}</p>
         </header>
 
         <section className="section">
-          <h3>Dados do Veículo</h3>
+          <h3>{t('report_template.vehicle_data')}</h3>
           <div className="data-grid">
-            <p><strong>Proprietário:</strong> {vehicleInfo.owner}</p>
-            <p><strong>Telefone:</strong> {vehicleInfo.phone}</p>
-            <p><strong>Marca/Modelo:</strong> {vehicleInfo.brand}</p>
-            <p><strong>Placa:</strong> {vehicleInfo.plate}</p>
+            {vehicleInfo.workshop && <p><strong>{t('report_template.workshop')}:</strong> {vehicleInfo.workshop}</p>}
+            {vehicleInfo.osNumber && <p><strong>{t('report_template.os_number')}:</strong> {vehicleInfo.osNumber}</p>}
+            <p><strong>{t('report_template.owner')}:</strong> {vehicleInfo.owner}</p>
+            <p><strong>{t('report_template.phone')}:</strong> {vehicleInfo.phone}</p>
+            <p><strong>{t('report_template.brand_model')}:</strong> {vehicleInfo.brand}</p>
+            <p><strong>{t('report_template.plate')}:</strong> {vehicleInfo.plate}</p>
           </div>
         </section>
 
         <section className="section">
-          <h3>Mapa de Danos</h3>
-          <p>Tipo de Veículo: {vehicleType.toUpperCase()}</p>
+          <h3>{t('report_template.damage_map')}</h3>
+          <p>{t('report_template.vehicle_type')}: {vehicleType.toUpperCase()}</p>
           <div style={{ textAlign: 'center', color: '#888', padding: '40px', border: '1px dashed #ccc', marginTop: '10px' }}>
-            [Área reservada para representação visual das 4 vistas do veículo]
+            {t('report_template.visual_placeholder')}
           </div>
         </section>
 
         <section className="section">
-          <h3>Detalhes das Avarias</h3>
+          <h3>{t('report_template.damage_details')}</h3>
           <table className="table">
             <thead>
               <tr>
-                <th>Peça</th>
-                <th>Tipo</th>
-                <th>Severidade</th>
+                <th>{t('report_template.part')}</th>
+                <th>{t('report_template.type')}</th>
+                <th>{t('report_template.severity')}</th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +71,7 @@ export const ReportTemplate = React.forwardRef<HTMLDivElement, ReportProps>(
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} style={{ textAlign: 'center' }}>Nenhuma avaria registrada.</td>
+                  <td colSpan={3} style={{ textAlign: 'center' }}>{t('report_template.no_damages')}</td>
                 </tr>
               )}
             </tbody>

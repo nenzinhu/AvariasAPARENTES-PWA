@@ -2,9 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Car, Bike, Truck, Bus, Smartphone,
-  Trash2, FileText, Share2, Info, Moon, Sun, 
-  Camera, CheckCircle2, AlertTriangle
+  FileText, Share2, Info, Moon, Sun,
+  AlertTriangle, ZoomIn, ZoomOut, RotateCcw, Move,
+  Maximize, Minimize
 } from 'lucide-react';
+
+import { useTranslation } from 'react-i18next';
 
 import { useDamageRegistry } from './hooks/useDamageRegistry';
 import { useTTS } from './hooks/useTTS';
@@ -22,31 +25,13 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { DamageList } from './components/DamageList';
 import { VehicleInfoForm } from './components/VehicleInfoForm';
 import { WizardProgress } from './components/WizardProgress';
+import { useSvgZoomPan } from './hooks/useSvgZoomPan';
 
-// Vehicle SVG Components
+import { VehicleRegistry } from './components/vehicles/registry';
 import VehicleDefs from './components/vehicles/VehicleDefs';
-import CarLateralLeft from './components/vehicles/CarLateralLeft';
-import CarLateralRight from './components/vehicles/CarLateralRight';
-import CarFrontal from './components/vehicles/CarFrontal';
-import CarTraseira from './components/vehicles/CarTraseira';
-import MotoLateralLeft from './components/vehicles/MotoLateralLeft';
-import MotoLateralRight from './components/vehicles/MotoLateralRight';
-import MotoFrontal from './components/vehicles/MotoFrontal';
-import MotoTraseira from './components/vehicles/MotoTraseira';
-import TruckLateralLeft from './components/vehicles/TruckLateralLeft';
-import TruckLateralRight from './components/vehicles/TruckLateralRight';
-import TruckFrontal from './components/vehicles/TruckFrontal';
-import TruckTraseira from './components/vehicles/TruckTraseira';
-import BusLateralLeft from './components/vehicles/BusLateralLeft';
-import BusLateralRight from './components/vehicles/BusLateralRight';
-import BusFrontal from './components/vehicles/BusFrontal';
-import BusTraseira from './components/vehicles/BusTraseira';
-import VanLateralLeft from './components/vehicles/VanLateralLeft';
-import VanLateralRight from './components/vehicles/VanLateralRight';
-import VanFrontal from './components/vehicles/VanFrontal';
-import VanTraseira from './components/vehicles/VanTraseira';
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
   const [vehicleType, setVehicleType] = useState<VehicleType>('car');
   const [viewType, setViewType] = useState<ViewType>('lateral-left');
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
@@ -54,6 +39,7 @@ const App: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isBlueprintMode, setIsBlueprintMode] = useState(false);
   const [isWizardMode, setIsWizardMode] = useState(true);
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [inspectedViews, setInspectedViews] = useState<Record<ViewType, boolean>>({
     'lateral-left': false,
@@ -69,6 +55,7 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const zoomResetKey = `${vehicleType}-${viewType}`;
   const [photoTargetId, setPhotoTargetId] = useState<string | null>(null);
   const [pendingDamage, setPendingDamage] = useState<Damage | null>(null);
 
@@ -80,9 +67,12 @@ const App: React.FC = () => {
     generalNotes: ''
   });
 
-  const { damages, loading, addDamage, removeDamage, updateDamage, toggleDamage, clearDamages } = useDamageRegistry();
+  const { damages, addDamage, removeDamage, updateDamage, clearDamages } = useDamageRegistry();
   const { speak } = useTTS();
   const svgRef = useRef<SVGSVGElement>(null);
+  const { scale: zoomScale, zoomIn, zoomOut, reset: resetZoom } = useSvgZoomPan(svgRef, {
+    resetKey: zoomResetKey,
+  });
   useDynamicLighting(svgRef);
 
   // Persistence for UI State (Metadata in IDB)
@@ -170,8 +160,13 @@ const App: React.FC = () => {
       photos: []
     };
 
-    setPendingDamage(damage);
-    fileInputRef.current?.click();
+    if (window.confirm(t('damage_registration.confirm_photo'))) {
+      setPendingDamage(damage);
+      fileInputRef.current?.click();
+    } else {
+      addDamage(damage);
+      speak(`${damage.partName} registrado sem foto.`);
+    }
   };
 
   const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +229,7 @@ const App: React.FC = () => {
   };
 
   const wizardSteps = [
-    { idx: 0, label: 'Dados', isDone: vehicleInfo.owner.trim().length > 0 && isValidPhone(vehicleInfo.phone) && isValidPlate(vehicleInfo.plate) },
+    { idx: 0, label: t('wizard.steps.data'), isDone: vehicleInfo.owner.trim().length > 0 && isValidPhone(vehicleInfo.phone) && isValidPlate(vehicleInfo.plate) },
     ...WIZARD_VIEWS.map((v, i) => ({
       idx: i + 1,
       label: v.replace('-', ' ').toUpperCase(),
@@ -242,7 +237,7 @@ const App: React.FC = () => {
       hasPending: viewPendingCount(v) > 0,
       pendingCount: viewPendingCount(v)
     })),
-    { idx: 5, label: 'Revisão', isDone: approvedForSignature && signatureName.trim().length > 2 }
+    { idx: 5, label: t('wizard.steps.review'), isDone: approvedForSignature && signatureName.trim().length > 2 }
   ];
 
   useEffect(() => {
@@ -262,15 +257,7 @@ const App: React.FC = () => {
       isBlueprintMode
     };
 
-    const vehicles = {
-      car: { 'lateral-left': CarLateralLeft, 'lateral-right': CarLateralRight, frontal: CarFrontal, traseira: CarTraseira },
-      moto: { 'lateral-left': MotoLateralLeft, 'lateral-right': MotoLateralRight, frontal: MotoFrontal, traseira: MotoTraseira },
-      truck: { 'lateral-left': TruckLateralLeft, 'lateral-right': TruckLateralRight, frontal: TruckFrontal, traseira: TruckTraseira },
-      bus: { 'lateral-left': BusLateralLeft, 'lateral-right': BusLateralRight, frontal: BusFrontal, traseira: BusTraseira },
-      van: { 'lateral-left': VanLateralLeft, 'lateral-right': VanLateralRight, frontal: VanFrontal, traseira: VanTraseira },
-    };
-
-    const Comp = vehicles[vehicleType][viewType];
+    const Comp = VehicleRegistry[vehicleType][viewType];
     return <Comp {...commonProps} />;
   };
 
@@ -285,11 +272,11 @@ const App: React.FC = () => {
             <Car size={32} />
           </div>
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
-            Avarias APARENTES
+            {t('app.title')}
           </h1>
         </motion.div>
         <p className="text-slate-500 max-w-2xl text-center font-medium">
-          Mapeamento interativo de danos veiculares para vistorias profissionais.
+          {t('app.subtitle')}
         </p>
       </header>
 
@@ -315,7 +302,7 @@ const App: React.FC = () => {
                       checked={inspectedViews[WIZARD_VIEWS[wizardStep - 1]]}
                       onChange={e => setInspectedViews(prev => ({ ...prev, [WIZARD_VIEWS[wizardStep - 1]]: e.target.checked }))}
                     />
-                    Vista inspecionada (sem avarias encontradas)
+                    {t('vehicle_info.inspected_view')}
                   </label>
                 </div>
               )}
@@ -323,10 +310,10 @@ const App: React.FC = () => {
               {wizardStep === 5 && (
                 <div className="mt-6 pt-6 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input
-                    label="Assinatura / Nome do Responsável"
+                    label={t('vehicle_info.signature_label')}
                     value={signatureName}
                     onChange={e => setSignatureName(e.target.value)}
-                    placeholder="Nome completo"
+                    placeholder={t('vehicle_info.signature_placeholder')}
                   />
                   <div className="flex items-end pb-2">
                     <label className="flex items-center gap-2 text-sm font-bold text-slate-400 cursor-pointer">
@@ -336,7 +323,7 @@ const App: React.FC = () => {
                         checked={approvedForSignature}
                         onChange={e => setApprovedForSignature(e.target.checked)}
                       />
-                      Confirmo a veracidade das informações
+                      {t('vehicle_info.confirmation')}
                     </label>
                   </div>
                 </div>
@@ -351,41 +338,102 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        <section className="lg:col-span-2 space-y-6">
-          <div className="flex flex-wrap justify-center gap-2">
-            {[
-              { id: 'car', icon: Car, label: 'Automóvel' },
-              { id: 'moto', icon: Bike, label: 'Moto' },
-              { id: 'truck', icon: Truck, label: 'Caminhão' },
-              { id: 'bus', icon: Bus, label: 'Ônibus' },
-              { id: 'van', icon: Smartphone, label: 'Van' },
-            ].map(v => (
-              <Button
-                key={v.id}
-                variant={vehicleType === v.id ? 'primary' : 'secondary'}
-                onClick={() => setVehicleType(v.id as VehicleType)}
-                className="flex-1 min-w-[100px]"
-              >
-                <v.icon size={18} className="mr-2" />
-                {v.label}
-              </Button>
-            ))}
-          </div>
+  const [isFullscreenMode, setIsFullscreenMode] = useState(false);
+...
+        <section className={`${isFullscreenMode ? 'fixed inset-0 z-50 p-4 bg-slate-950' : 'lg:col-span-2'} space-y-6`}>
+          {!isFullscreenMode && (
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { id: 'car', icon: Car, label: t('vehicle_types.car') },
+                { id: 'moto', icon: Bike, label: t('vehicle_types.moto') },
+                { id: 'truck', icon: Truck, label: t('vehicle_types.truck') },
+                { id: 'bus', icon: Bus, label: t('vehicle_types.bus') },
+                { id: 'van', icon: Smartphone, label: t('vehicle_types.van') },
+              ].map(v => (
+                <Button
+                  key={v.id}
+                  variant={vehicleType === v.id ? 'primary' : 'secondary'}
+                  onClick={() => setVehicleType(v.id as VehicleType)}
+                  className="flex-1 min-w-[100px]"
+                >
+                  <v.icon size={18} className="mr-2" />
+                  {v.label}
+                </Button>
+              ))}
+            </div>
+          )}
 
-          <div className="flex flex-wrap justify-center gap-2">
-            {WIZARD_VIEWS.map(v => (
+          {!isFullscreenMode && (
+            <div className="flex flex-wrap justify-center gap-2">
+              {WIZARD_VIEWS.map(v => (
+                <Button
+                  key={v}
+                  variant={viewType === v ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewType(v as ViewType)}
+                >
+                  {v.replace('-', ' ').toUpperCase()}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          <div className={`glass-card p-8 flex items-center justify-center relative overflow-hidden ${isFullscreenMode ? 'h-full' : 'min-h-[400px]'}`}>
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
               <Button
-                key={v}
-                variant={viewType === v ? 'primary' : 'ghost'}
+                type="button"
+                variant="ghost"
                 size="sm"
-                onClick={() => setViewType(v as ViewType)}
+                className="h-8 w-8 p-0 rounded-full"
+                onClick={() => setIsFullscreenMode(!isFullscreenMode)}
+                aria-label={isFullscreenMode ? t('ui.exit_fullscreen') : t('ui.fullscreen')}
+                title={isFullscreenMode ? t('ui.exit_fullscreen') : t('ui.fullscreen')}
               >
-                {v.replace('-', ' ').toUpperCase()}
+                {isFullscreenMode ? <Minimize size={14} /> : <Maximize size={14} />} 
               </Button>
-            ))}
-          </div>
-
-          <div className="glass-card min-h-[400px] p-8 flex items-center justify-center relative overflow-hidden">
+              <div className="hidden md:flex items-center gap-2 text-[10px] font-black uppercase tracking-wide text-slate-400 bg-slate-900/70 backdrop-blur px-3 py-2 rounded-full border border-white/5">
+                <Move size={12} />
+                {t('ui.drag_to_move')}
+              </div>
+              <div className="flex items-center gap-1 bg-slate-900/70 backdrop-blur px-2 py-2 rounded-full border border-white/5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                  onClick={zoomOut}
+                  aria-label="Diminuir zoom"
+                  title="Diminuir zoom"
+                >
+                  <ZoomOut size={14} />
+                </Button>
+                <span className="min-w-[52px] text-center text-[10px] font-black text-slate-300">
+                  {Math.round(zoomScale * 100)}%
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                  onClick={zoomIn}
+                  aria-label="Aumentar zoom"
+                  title="Aumentar zoom"
+                >
+                  <ZoomIn size={14} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                  onClick={resetZoom}
+                  aria-label="Redefinir zoom"
+                  title="Redefinir zoom"
+                >
+                  <RotateCcw size={14} />
+                </Button>
+              </div>
+            </div>
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${vehicleType}-${viewType}`}
@@ -400,7 +448,7 @@ const App: React.FC = () => {
             </AnimatePresence>
             <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 bg-slate-900/50 backdrop-blur px-3 py-1.5 rounded-full border border-white/5">
               <Info size={12} />
-              Toque na peça para marcar avaria
+              {t('ui.touch_to_mark')}
             </div>
           </div>
 
@@ -435,11 +483,11 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2 text-blue-500">
                 <FileText size={20} />
-                Avarias ({currentVehicleDamages.length})
+                {t('ui.damages')} ({currentVehicleDamages.length})
               </h2>
               {currentVehicleDamages.length > 0 && (
                 <button onClick={() => setIsClearModalOpen(true)} className="text-[10px] font-black text-red-400 hover:text-red-300 transition-colors uppercase">
-                  Limpar Tudo
+                  {t('ui.clear_all')}
                 </button>
               )}
             </div>
@@ -461,11 +509,11 @@ const App: React.FC = () => {
                 onClick={() => setIsExportModalOpen(true)}
               >
                 <Share2 size={18} className="mr-2" />
-                Exportar / Compartilhar
+                {t('ui.export_share')}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setIsBlueprintMode(!isBlueprintMode)}>
-                  {isBlueprintMode ? 'Visual Real' : 'Blueprint'}
+                  {isBlueprintMode ? t('ui.real_view') : t('ui.blueprint')}
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setIsDarkMode(!isDarkMode)}>
                   {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
@@ -489,10 +537,10 @@ const App: React.FC = () => {
       <Modal 
         isOpen={isExportModalOpen} 
         onClose={() => setIsExportModalOpen(false)} 
-        title="Exportar Relatório"
+        title={t('ui.export_report')}
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">Escolha o formato desejado para exportar a vistoria de <span className="text-white font-bold">{vehicleInfo.plate || 'veículo sem placa'}</span>.</p>
+          <p className="text-sm text-slate-400">{t('ui.choose_format')} <span className="text-white font-bold">{vehicleInfo.plate || 'veículo sem placa'}</span>.</p>
           <div className="grid grid-cols-1 gap-3">
             <Button variant="primary" className="justify-start h-14" onClick={() => handleExport('pdf')} isLoading={isGenerating}>
               <FileText size={20} className="mr-3" />

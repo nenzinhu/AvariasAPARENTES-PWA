@@ -20,6 +20,8 @@ export interface VehicleInfo {
   brand: string;
   plate: string;
   generalNotes: string;
+  workshop?: string;
+  osNumber?: string;
 }
 
 export type VehicleType = 'car' | 'moto' | 'truck' | 'bus' | 'van';

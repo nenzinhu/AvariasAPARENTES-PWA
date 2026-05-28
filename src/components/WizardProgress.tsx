@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -28,13 +29,14 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
   onNext,
   canNext
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="text-xs font-black uppercase tracking-wider text-slate-500">Fluxo de Vistoria</div>
+          <div className="text-xs font-black uppercase tracking-wider text-slate-500">{t('wizard_progress.title')}</div>
           <div className="text-sm font-bold text-slate-300">
-            Passo {currentStep + 1} de {steps.length}: {steps[currentStep].label}
+            {t('wizard_progress.step', { current: currentStep + 1, total: steps.length, label: steps[currentStep].label })}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -45,14 +47,14 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
             disabled={currentStep === 0}
           >
             <ChevronLeft size={14} className="mr-1" />
-            Voltar
+            {t('wizard_progress.prev')}
           </Button>
           <Button
             size="sm"
             onClick={onNext}
             disabled={!canNext || currentStep === steps.length - 1}
           >
-            Próximo
+            {t('wizard_progress.next')}
             <ChevronRight size={14} className="ml-1" />
           </Button>
         </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Camera, AlertTriangle, Plus, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Damage } from '../types';
 import { Button } from './ui/Button';
 
@@ -17,6 +18,7 @@ export const DamageList: React.FC<DamageListProps> = ({
   onUpdate,
   onAddPhoto
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col h-full max-h-[600px]">
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
@@ -25,7 +27,7 @@ export const DamageList: React.FC<DamageListProps> = ({
             <div className="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-3">
               <Camera size={24} />
             </div>
-            Nenhuma avaria registrada.
+            {t('damage_list.no_damages')}
           </div>
         ) : (
           <AnimatePresence initial={false}>
@@ -88,14 +90,14 @@ export const DamageList: React.FC<DamageListProps> = ({
                 {!damage.photos.length && !damage.notes.trim() && (
                   <div className="text-[10px] font-black text-red-300 flex items-center gap-1 bg-red-500/10 p-2 rounded-lg">
                     <AlertTriangle size={12} />
-                    Pendência: adicione uma foto ou observação
+                    {t('damage_list.pending')}
                   </div>
                 )}
 
                 <textarea
                   value={damage.notes}
                   onChange={e => onUpdate(damage.id, { notes: e.target.value })}
-                  placeholder="Observações adicionais..."
+                  placeholder={t('damage_list.notes_placeholder')}
                   className="w-full bg-slate-950/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 outline-none focus:border-blue-500/40 transition-all min-h-[60px] resize-none"
                 />
               </motion.div>
